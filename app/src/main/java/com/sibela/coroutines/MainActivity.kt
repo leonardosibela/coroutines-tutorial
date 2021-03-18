@@ -11,6 +11,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val RESULT_ONE = "Result 1"
         private const val RESULT_TWO = "Result 2"
+        private const val JOB_TIMEOUT = 1_900L
     }
 
     private lateinit var button: Button
@@ -29,14 +30,31 @@ class MainActivity : AppCompatActivity() {
             // Dispatchers.Main -> Work to be done in the main thread
             // Dispatchers.Default -> Heavy computation work
             CoroutineScope(Dispatchers.IO).launch {
-                fakeApiRequest()
+                fakeApiRequestWithTimeout()
+            }
+        }
+    }
+
+    private suspend fun fakeApiRequestWithTimeout() {
+        withContext(Dispatchers.IO) {
+            val job = withTimeoutOrNull(JOB_TIMEOUT) {
+                val resultOne = getResultOneFromApi()
+                setTextOnMainThread(resultOne)
+
+                val resultTwo = getResultTwoFromApi()
+                setTextOnMainThread(resultTwo)
+            }
+
+            // If job timed-out
+            if (job == null) {
+                val cancelMessage = "Cancelling job because it took more than $JOB_TIMEOUT"
+                setTextOnMainThread(cancelMessage)
             }
         }
     }
 
     private suspend fun fakeApiRequest() {
         val resultOne = getResultOneFromApi()
-        println("Debug: $resultOne")
         setTextOnMainThread(resultOne)
 
         val resultTwo = getResultTwoFromApi()
